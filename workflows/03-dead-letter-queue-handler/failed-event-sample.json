@@ -1,0 +1,13 @@
+{
+  "workflow_name": "Invoice Sync",
+  "source_event_id": "evt-9001",
+  "error_message": "HTTP 503 from downstream service",
+  "error_code": "HTTP_503",
+  "retry_count": 2,
+  "max_retries": 3,
+  "payload": {
+    "invoice_id": "INV-2044",
+    "customer_reference": "CUST-118"
+  },
+  "failed_at": "2026-06-08T10:20:00Z"
+}

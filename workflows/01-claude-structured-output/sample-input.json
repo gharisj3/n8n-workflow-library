@@ -1,0 +1,5 @@
+{
+  "text": "Client asked for an invoice follow-up because payment is overdue and finance needs the CRM updated.",
+  "source": "demo-webhook",
+  "request_id": "req-structured-001"
+}

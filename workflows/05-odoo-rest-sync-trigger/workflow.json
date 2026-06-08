@@ -1,0 +1,244 @@
+{
+  "name": "Odoo REST Sync Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "odoo-rest-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "05-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst required = ['name', 'email', 'external_reference'];\nconst missing = required.filter((field) => !body[field]);\nif (missing.length) {\n  return [{ json: { ok: false, statusCode: 400, error: `Missing required fields: ${missing.join(', ')}` } }];\n}\nreturn [{ json: { ok: true, source: { name: String(body.name).trim(), email: String(body.email).trim().toLowerCase(), phone: body.phone || '', company_name: body.company_name || '', external_reference: String(body.external_reference).trim() } } }];"
+      },
+      "id": "05-normalize-incoming-payload",
+      "name": "Normalize Incoming Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "05-payload-valid",
+      "name": "Payload Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $json.source;\nreturn [{ json: { external_reference: source.external_reference, odoo_payload: { name: source.name, email_from: source.email, phone: source.phone, partner_name: source.company_name, x_external_reference: source.external_reference } } }];"
+      },
+      "id": "05-map-fields-for-odoo",
+      "name": "Map Fields for Odoo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.com/endpoint",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.odoo_payload}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "05-http-request-to-odoo",
+      "name": "HTTP Request to Odoo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -120
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PLACEHOLDER_ODOO_API_CREDENTIAL",
+          "name": "ODOO_API_CREDENTIAL"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const hasError = Boolean($json.error || $json.statusCode >= 400);\nreturn [{ json: { ok: !hasError, status: hasError ? 'sync_failed' : 'synced', external_reference: $('Map Fields for Odoo').first().json.external_reference, odoo_response: $json } }];"
+      },
+      "id": "05-success-branch",
+      "name": "Success Branch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "05-error-branch",
+      "name": "Error Branch",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": "={{$json.ok ? 200 : 502}}"
+        }
+      },
+      "id": "05-respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Incoming Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Incoming Payload": {
+      "main": [
+        [
+          {
+            "node": "Payload Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload Valid?": {
+      "main": [
+        [
+          {
+            "node": "Map Fields for Odoo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Fields for Odoo": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request to Odoo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request to Odoo": {
+      "main": [
+        [
+          {
+            "node": "Success Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Branch": {
+      "main": [
+        [
+          {
+            "node": "Error Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Branch": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "placeholder-05"
+}

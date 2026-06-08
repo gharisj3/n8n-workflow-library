@@ -1,0 +1,338 @@
+{
+  "name": "CRM Lead Enrichment Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-lead-router",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "07-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nreturn [{ json: { lead: { name: String(body.name || '').trim(), email: String(body.email || '').trim().toLowerCase(), company: String(body.company || '').trim(), country: String(body.country || '').trim(), budget: Number(body.budget || 0), interest: String(body.interest || '').trim().toLowerCase(), source: String(body.source || '').trim().toLowerCase() } } }];"
+      },
+      "id": "07-normalize-lead-data",
+      "name": "Normalize Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const required = ['name', 'email', 'company', 'country', 'interest', 'source'];\nconst missing = required.filter((field) => !$json.lead[field]);\nif (missing.length) {\n  return [{ json: { ok: false, statusCode: 400, error: `Missing required fields: ${missing.join(', ')}`, lead: $json.lead } }];\n}\nreturn [{ json: { ok: true, lead: $json.lead } }];"
+      },
+      "id": "07-validate-required-fields",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "07-lead-valid",
+      "name": "Lead Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, enrichment: { company_size: 'unknown', note: 'Replace with safe enrichment source if needed.' } } }];"
+      },
+      "id": "07-optional-enrichment-placeholder",
+      "name": "Optional Enrichment Placeholder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $json.lead;\nlet score = 0;\nif (lead.budget >= 10000) score += 40; else if (lead.budget >= 3000) score += 25;\nif (!/(gmail|yahoo|outlook|hotmail)\\.com$/.test(lead.email)) score += 20;\nif (/automation|integration|workflow|crm/.test(lead.interest)) score += 20;\nif (['website-form', 'referral'].includes(lead.source)) score += 5;\nconst classification = score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold';\nreturn [{ json: { ...$json, score, classification } }];"
+      },
+      "id": "07-score-lead",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.classification}}",
+                    "rightValue": "hot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "hot"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.classification}}",
+                    "rightValue": "warm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "warm"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "07-route-lead",
+      "name": "Route Lead",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        540,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, lead: $json.lead, score: $json.score, classification: 'hot', route: 'sales_priority_queue' } }];"
+      },
+      "id": "07-route-hot-lead",
+      "name": "Route Hot Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, lead: $json.lead, score: $json.score, classification: 'warm', route: 'nurture_queue' } }];"
+      },
+      "id": "07-route-warm-lead",
+      "name": "Route Warm Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, lead: $json.lead, score: $json.score, classification: 'cold', route: 'low_priority_queue' } }];"
+      },
+      "id": "07-route-cold-lead",
+      "name": "Route Cold Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": "={{$json.statusCode || 200}}"
+        }
+      },
+      "id": "07-return-structured-response",
+      "name": "Return Structured Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Lead Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Valid?": {
+      "main": [
+        [
+          {
+            "node": "Optional Enrichment Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Structured Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optional Enrichment Placeholder": {
+      "main": [
+        [
+          {
+            "node": "Score Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Lead": {
+      "main": [
+        [
+          {
+            "node": "Route Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Lead": {
+      "main": [
+        [
+          {
+            "node": "Route Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Warm Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Cold Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Hot Lead": {
+      "main": [
+        [
+          {
+            "node": "Return Structured Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Warm Lead": {
+      "main": [
+        [
+          {
+            "node": "Return Structured Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Cold Lead": {
+      "main": [
+        [
+          {
+            "node": "Return Structured Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "placeholder-07"
+}

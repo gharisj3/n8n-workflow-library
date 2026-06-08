@@ -1,0 +1,21 @@
+{
+  "batch_size": 3,
+  "items": [
+    {
+      "id": "item-001",
+      "name": "North Region"
+    },
+    {
+      "id": "item-002",
+      "name": "South Region"
+    },
+    {
+      "id": "item-003",
+      "name": "East Region"
+    },
+    {
+      "id": "item-004",
+      "name": "West Region"
+    }
+  ]
+}

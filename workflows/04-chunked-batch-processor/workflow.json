@@ -1,0 +1,248 @@
+{
+  "name": "Chunked Batch Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chunked-batch-processor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "04-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "04-manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst items = Array.isArray(body.items) ? body.items : [];\nreturn [{ json: { items, batch_size: Number(body.batch_size || 10) } }];"
+      },
+      "id": "04-load-input-array",
+      "name": "Load Input Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.items.length) {\n  return [{ json: { ok: false, error: 'items must be a non-empty array', statusCode: 400 } }];\n}\nreturn $json.items.map((item, index) => ({ json: { item, item_index: index, batch_size: $json.batch_size } }));"
+      },
+      "id": "04-validate-array",
+      "name": "Validate Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": "={{$json.batch_size || 10}}",
+        "options": {}
+      },
+      "id": "04-split-in-batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -160,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { id: $json.item.id || $json.item_index, status: 'processed', processed_at: new Date().toISOString(), item: $json.item } }];"
+      },
+      "id": "04-process-item-placeholder",
+      "name": "Process Item Placeholder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "id": "04-delay-rate-limit",
+      "name": "Delay / Rate Limit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, processed_count: $items().length, failed_count: 0, results: $items().map((entry) => entry.json) } }];"
+      },
+      "id": "04-collect-results",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, failed_items: [] } }];"
+      },
+      "id": "04-handle-failed-items",
+      "name": "Handle Failed Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "04-return-summary",
+      "name": "Return Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Input Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Input Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Input Array": {
+      "main": [
+        [
+          {
+            "node": "Validate Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Array": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Process Item Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Item Placeholder": {
+      "main": [
+        [
+          {
+            "node": "Delay / Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay / Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Handle Failed Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Failed Items": {
+      "main": [
+        [
+          {
+            "node": "Return Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "placeholder-04"
+}

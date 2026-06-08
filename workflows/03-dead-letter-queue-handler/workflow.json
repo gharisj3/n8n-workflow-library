@@ -1,0 +1,238 @@
+{
+  "name": "Dead-Letter Queue Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dead-letter-handler",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "03-webhook-trigger-for-failed-event",
+      "name": "Webhook Trigger for Failed Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nreturn [{ json: { workflow_name: body.workflow_name || 'unknown', source_event_id: body.source_event_id || $execution.id, error_message: body.error_message || 'No error message supplied', error_code: body.error_code || 'UNKNOWN', retry_count: Number(body.retry_count || 0), max_retries: Number(body.max_retries || 3), payload: body.payload || {}, failed_at: body.failed_at || new Date().toISOString() } }];"
+      },
+      "id": "03-normalize-failed-event",
+      "name": "Normalize Failed Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const recoverable = ['HTTP_408', 'HTTP_429', 'HTTP_500', 'HTTP_502', 'HTTP_503', 'HTTP_504', 'TIMEOUT', 'NETWORK_ERROR'];\nconst nonRecoverable = ['HTTP_400', 'HTTP_401', 'HTTP_403', 'HTTP_404', 'SCHEMA_VALIDATION_FAILED', 'MISSING_REQUIRED_FIELD'];\nlet category = 'unknown';\nif (recoverable.includes($json.error_code)) category = 'recoverable';\nif (nonRecoverable.includes($json.error_code)) category = 'non_recoverable';\nreturn [{ json: { ...$json, category } }];"
+      },
+      "id": "03-classify-error",
+      "name": "Classify Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const retryAllowed = $json.category === 'recoverable' && $json.retry_count < $json.max_retries;\nreturn [{ json: { ...$json, retry_allowed: retryAllowed, decision: retryAllowed ? 'retry_allowed' : 'final_dead_letter' } }];"
+      },
+      "id": "03-check-retry-count",
+      "name": "Check Retry Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.retry_allowed}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03-retry-allowed-branch",
+      "name": "Retry Allowed Branch",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        160,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, decision: 'retry_allowed', category: $json.category, next_retry_count: $json.retry_count + 1, source_event_id: $json.source_event_id } }];"
+      },
+      "id": "03-build-retry-response",
+      "name": "Build Retry Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, decision: 'final_dead_letter', category: $json.category, review_status: 'needs_manual_review', failed_event: $json } }];"
+      },
+      "id": "03-final-dead-letter-branch",
+      "name": "Final Dead-Letter Branch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, stored_at: new Date().toISOString(), storage_note: 'Replace this Code node with database, queue, or issue tracker storage in production.' } }];"
+      },
+      "id": "03-store-failed-event",
+      "name": "Store Failed Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "03-respond-with-status",
+      "name": "Respond with Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger for Failed Event": {
+      "main": [
+        [
+          {
+            "node": "Normalize Failed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Failed Event": {
+      "main": [
+        [
+          {
+            "node": "Classify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Error": {
+      "main": [
+        [
+          {
+            "node": "Check Retry Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Count": {
+      "main": [
+        [
+          {
+            "node": "Retry Allowed Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Allowed Branch": {
+      "main": [
+        [
+          {
+            "node": "Build Retry Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Final Dead-Letter Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Retry Response": {
+      "main": [
+        [
+          {
+            "node": "Store Failed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Dead-Letter Branch": {
+      "main": [
+        [
+          {
+            "node": "Store Failed Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Failed Event": {
+      "main": [
+        [
+          {
+            "node": "Respond with Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "placeholder-03"
+}

@@ -1,0 +1,11 @@
+.env
+*.log
+node_modules/
+.n8n/
+.DS_Store
+.vscode/
+.idea/
+tmp/
+dist/
+coverage/
+**pycache**/

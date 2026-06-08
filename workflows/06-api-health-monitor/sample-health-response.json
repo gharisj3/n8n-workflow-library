@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-06-08T11:30:00Z",
+  "summary": {
+    "healthy": 2,
+    "unhealthy": 1
+  },
+  "results": [
+    {
+      "name": "Orders API",
+      "url": "https://api.example.com/endpoint",
+      "status": "healthy",
+      "status_code": 200,
+      "latency_ms": 184
+    }
+  ]
+}

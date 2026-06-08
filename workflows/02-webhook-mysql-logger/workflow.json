@@ -1,0 +1,193 @@
+{
+  "name": "Webhook - MySQL Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-mysql-logger",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "02-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst missing = ['source', 'event_type', 'payload'].filter((field) => body[field] === undefined || body[field] === null || body[field] === '');\nif (missing.length) {\n  return [{ json: { ok: false, statusCode: 400, error: `Missing required fields: ${missing.join(', ')}` } }];\n}\nreturn [{ json: { ok: true, body } }];"
+      },
+      "id": "02-validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "02-payload-valid",
+      "name": "Payload Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nreturn [{ json: { source: String(body.source).slice(0, 120), event_type: String(body.event_type).slice(0, 120), payload_json: JSON.stringify({ payload: body.payload, timestamp: body.timestamp || new Date().toISOString() }), status: 'received' } }];"
+      },
+      "id": "02-normalize-payload",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "webhook_logs",
+        "columns": "source,event_type,payload_json,status",
+        "options": {}
+      },
+      "id": "02-mysql-insert",
+      "name": "MySQL Insert",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        260,
+        -120
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "PLACEHOLDER_MYSQL_CREDENTIAL",
+          "name": "MYSQL_CREDENTIAL"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'logged' } }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "02-success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error || 'Failed to log webhook payload' } }}",
+        "options": {
+          "responseCode": "={{$json.statusCode || 500}}"
+        }
+      },
+      "id": "02-error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        40,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Payload Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "MySQL Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL Insert": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "placeholder-02"
+}

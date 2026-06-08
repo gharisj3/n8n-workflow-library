@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "processed_count": 4,
+  "failed_count": 0,
+  "batch_size": 3,
+  "results": [
+    {
+      "id": "item-001",
+      "status": "processed"
+    }
+  ]
+}

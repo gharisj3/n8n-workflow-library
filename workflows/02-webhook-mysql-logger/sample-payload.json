@@ -1,0 +1,11 @@
+{
+  "source": "billing-system",
+  "event_type": "invoice.updated",
+  "payload": {
+    "invoice_id": "INV-1007",
+    "amount": 480,
+    "currency": "USD",
+    "status": "sent"
+  },
+  "timestamp": "2026-06-08T09:15:00Z"
+}

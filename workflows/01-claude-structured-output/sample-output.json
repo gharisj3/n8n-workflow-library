@@ -1,0 +1,11 @@
+{
+  "title": "Prepare invoice follow-up",
+  "priority": "high",
+  "category": "finance",
+  "summary": "Follow up with client about unpaid invoice.",
+  "action_items": [
+    "Check invoice status",
+    "Send reminder email",
+    "Update CRM notes"
+  ]
+}
