@@ -18,19 +18,9 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "04-manual-trigger",
-      "name": "Manual Trigger",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -900,
-        180
-      ]
-    },
-    {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nconst items = Array.isArray(body.items) ? body.items : [];\nreturn [{ json: { items, batch_size: Number(body.batch_size || 10) } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\nconst batchSize = Number(body.batch_size ?? 3);\nif (!Array.isArray(body.items) || body.items.length === 0 ||\n    body.items.some(item => !item || typeof item !== 'object' || Array.isArray(item)) ||\n    !Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000) {\n  return [{json: {ok: false, error: 'items must be a non-empty array of objects; batch_size must be an integer from 1 to 1000', statusCode: 400}}];\n}\nreturn [{json: {ok: true, items: body.items, batch_size: batchSize}}];"
       },
       "id": "04-load-input-array",
       "name": "Load Input Array",
@@ -43,7 +33,8 @@
     },
     {
       "parameters": {
-        "jsCode": "if (!$json.items.length) {\n  return [{ json: { ok: false, error: 'items must be a non-empty array', statusCode: 400 } }];\n}\nreturn $json.items.map((item, index) => ({ json: { item, item_index: index, batch_size: $json.batch_size } }));"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const body = $input.first().json;\nreturn body.items.map((item, index) => ({json: {item, item_index: index, batch_size: body.batch_size}, pairedItem: {item: 0}}));"
       },
       "id": "04-validate-array",
       "name": "Validate Array",
@@ -57,7 +48,9 @@
     {
       "parameters": {
         "batchSize": "={{$json.batch_size || 10}}",
-        "options": {}
+        "options": {
+          "reset": false
+        }
       },
       "id": "04-split-in-batches",
       "name": "Split In Batches",
@@ -70,7 +63,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { id: $json.item.id || $json.item_index, status: 'processed', processed_at: new Date().toISOString(), item: $json.item } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Synthetic per-item work only. Replace with your actual processing boundary.\nreturn $input.all().map((entry, index) => {\n  const data = entry.json;\n  try {\n    if (data.item.simulate_failure === true) throw new Error('Synthetic item failure');\n    return {json: {...data, id: data.item.id ?? data.item_index, status: 'processed', processed_at: new Date().toISOString()}, pairedItem: {item: index}};\n  } catch (error) {\n    return {json: {...data, id: data.item.id ?? data.item_index, status: 'failed', error: String(error.message), processed_at: new Date().toISOString()}, pairedItem: {item: index}};\n  }\n});"
       },
       "id": "04-process-item-placeholder",
       "name": "Process Item Placeholder",
@@ -97,7 +91,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ok: true, processed_count: $items().length, failed_count: 0, results: $items().map((entry) => entry.json) } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = $input.all().map(entry => entry.json);\nconst failed = results.filter(item => item.status === 'failed');\nconst processed = results.filter(item => item.status === 'processed');\nreturn [{json: {ok: failed.length === 0, processed_count: processed.length, failed_count: failed.length, batch_size: results[0]?.batch_size ?? 3, results}}];"
       },
       "id": "04-collect-results",
       "name": "Collect Results",
@@ -110,7 +105,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, failed_items: [] } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const summary = $input.first().json;\nreturn [{json: {...summary, failed_items: summary.results.filter(item => item.status === 'failed')}}];"
       },
       "id": "04-handle-failed-items",
       "name": "Handle Failed Items",
@@ -126,7 +122,7 @@
         "respondWith": "json",
         "responseBody": "={{$json}}",
         "options": {
-          "responseCode": 200
+          "responseCode": "={{$json.statusCode || 200}}"
         }
       },
       "id": "04-return-summary",
@@ -136,6 +132,26 @@
       "position": [
         1040,
         -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "04-input-valid",
+      "name": "Input Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        0
       ]
     }
   ],
@@ -151,22 +167,11 @@
         ]
       ]
     },
-    "Manual Trigger": {
-      "main": [
-        [
-          {
-            "node": "Load Input Array",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Load Input Array": {
       "main": [
         [
           {
-            "node": "Validate Array",
+            "node": "Input Valid?",
             "type": "main",
             "index": 0
           }
@@ -186,6 +191,13 @@
     },
     "Split In Batches": {
       "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Process Item Placeholder",
@@ -210,7 +222,7 @@
       "main": [
         [
           {
-            "node": "Collect Results",
+            "node": "Split In Batches",
             "type": "main",
             "index": 0
           }
@@ -230,6 +242,24 @@
     },
     "Handle Failed Items": {
       "main": [
+        [
+          {
+            "node": "Return Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Valid?": {
+      "main": [
+        [
+          {
+            "node": "Validate Array",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Return Summary",

@@ -67,7 +67,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const endpoint = $('Set Endpoint List').first().json;\nconst statusCode = Number($json.statusCode || $json.status || 0);\nconst healthy = endpoint.expected.includes(statusCode);\nreturn [{ json: { name: endpoint.name, url: endpoint.url, status_code: statusCode, status: healthy ? 'healthy' : 'unhealthy', expected: endpoint.expected, checked_at: new Date().toISOString(), raw: $json } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => {\n  const endpoint = $('Set Endpoint List').itemMatching(index).json;\n  const data = entry.json;\n  const statusCode = Number(data.statusCode || data.status || 0);\n  return {json: {name: endpoint.name, url: endpoint.url, status_code: statusCode, status: endpoint.expected.includes(statusCode) ? 'healthy' : 'unhealthy', expected: endpoint.expected, checked_at: new Date().toISOString(), elapsed_ms: Math.max(0, Date.now() - endpoint.started_at), raw: data}, pairedItem: {item: index}};\n});"
       },
       "id": "06-status-code-check",
       "name": "Status Code Check",
@@ -80,7 +81,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, latency_ms: $json.raw?.headers?.['x-response-time-ms'] || null } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => ({json: {...entry.json, latency_ms: entry.json.raw?.headers?.['x-response-time-ms'] ?? null, elapsed_ms: entry.json.elapsed_ms}, pairedItem: {item: index}}));"
       },
       "id": "06-latency-capture",
       "name": "Latency Capture",
@@ -114,7 +116,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, log_level: 'info' } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => ({json: {...entry.json, log_level: 'info'}, pairedItem: {item: index}}));"
       },
       "id": "06-log-success",
       "name": "Log Success",
@@ -127,7 +130,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, log_level: 'warn', alert_candidate: true } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => ({json: {...entry.json, log_level: 'warn', alert_candidate: true}, pairedItem: {item: index}}));"
       },
       "id": "06-failure-branch",
       "name": "Failure Branch",
@@ -140,10 +144,11 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, logged_at: new Date().toISOString() } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => ({json: {...entry.json, prepared_at: new Date().toISOString(), persisted: false}, pairedItem: {item: index}}));"
       },
       "id": "06-log-result",
-      "name": "Log Result",
+      "name": "Prepare Health Record",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -153,7 +158,8 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, notification_note: 'Replace this node with an alert channel for unhealthy endpoints.' } }];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all().map((entry, index) => ({json: {...entry.json, notification_sent: false, notification_note: 'Replace this node with an alert channel for unhealthy endpoints.'}, pairedItem: {item: index}}));"
       },
       "id": "06-optional-notification-placeholder",
       "name": "Optional Notification Placeholder",
@@ -243,7 +249,7 @@
       "main": [
         [
           {
-            "node": "Log Result",
+            "node": "Prepare Health Record",
             "type": "main",
             "index": 0
           }
@@ -254,14 +260,14 @@
       "main": [
         [
           {
-            "node": "Log Result",
+            "node": "Prepare Health Record",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Result": {
+    "Prepare Health Record": {
       "main": [
         [
           {

@@ -119,6 +119,26 @@
         40,
         160
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{!$json.error}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "02-insert-succeeded",
+      "name": "Insert Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -120
+      ]
     }
   ],
   "connections": {
@@ -177,7 +197,25 @@
       "main": [
         [
           {
+            "node": "Insert Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Succeeded?": {
+      "main": [
+        [
+          {
             "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
             "type": "main",
             "index": 0
           }

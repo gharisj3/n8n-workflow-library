@@ -1,12 +1,32 @@
 {
-  "ok": true,
-  "processed_count": 4,
-  "failed_count": 0,
+  "ok": false,
+  "processed_count": 3,
+  "failed_count": 1,
   "batch_size": 3,
   "results": [
     {
       "id": "item-001",
       "status": "processed"
+    },
+    {
+      "id": "item-002",
+      "status": "processed"
+    },
+    {
+      "id": "item-003",
+      "status": "processed"
+    },
+    {
+      "id": "item-004",
+      "status": "failed",
+      "error": "Synthetic item failure"
+    }
+  ],
+  "failed_items": [
+    {
+      "id": "item-004",
+      "status": "failed",
+      "error": "Synthetic item failure"
     }
   ]
 }

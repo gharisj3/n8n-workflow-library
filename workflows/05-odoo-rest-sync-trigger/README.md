@@ -26,10 +26,11 @@ Webhook Trigger -> Normalize Incoming Payload -> Map Fields for Odoo -> HTTP Req
 
 - `ODOO_BASE_URL`
 - `ODOO_API_KEY`
+- `ODOO_SYNC_URL`: the full URL of your custom Odoo/middleware endpoint
 
 ## REST Endpoint Placeholders
 
-The workflow uses `https://api.example.com/endpoint`. Replace this with your Odoo REST endpoint or middleware endpoint after import.
+The workflow reads `ODOO_SYNC_URL`; no working URL is provided by default. This is a custom REST-style endpoint contract, not a claim that stock Odoo provides this endpoint or the custom `x_external_reference` field. Implement the receiving route/field mapping, configure its credential, then test it before activation.
 
 ## Field Mapping
 
@@ -51,7 +52,7 @@ See `sample-odoo-payload.json`.
 
 ## How to Import
 
-Import `workflow.json`, reconnect `ODOO_API_CREDENTIAL`, and replace the placeholder URL with your endpoint.
+Import `workflow.json`, reconnect `ODOO_API_CREDENTIAL`, and configure `ODOO_SYNC_URL` for your receiving endpoint.
 
 ## How to Test
 

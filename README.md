@@ -1,5 +1,7 @@
 # n8n Workflow Library
 
+**Status: workflow templates, not verified live integrations.** Exports contain sample logic and configurable/placeholder endpoints or credentials. Batching, health-record association and validation logic have offline JavaScript checks. This does not replace importing and executing them in n8n. Dead-letter persistence, real item processing and alert delivery are extension points, not implemented production services. Configure the URL/model/storage requirements documented in each workflow before use.
+
 A practical open-source library of production-style n8n workflow exports for common automation patterns: structured API output, webhook logging, failed-event handling, chunked processing, Odoo sync, API monitoring, and CRM lead routing.
 
 This repository is designed as a developer utility library. Each workflow includes an importable `workflow.json`, architecture notes, sample data, and implementation guidance you can adapt without paid tools or hardcoded credentials.
@@ -92,9 +94,12 @@ Run:
 
 ```bash
 python tools/validate_workflows.py
+node --test tools/test_workflows.mjs
 ```
 
 The validator checks every workflow export for valid JSON and required top-level fields.
+
+The Node.js checks execute selected Code-node logic and verify graph connections with synthetic inputs, including more than one batch and an injected failure. They do not run an n8n instance, call providers, write MySQL or prove live Odoo sync. Configure credentials, endpoints and storage before testing those integrations locally.
 
 ## Security Notes
 

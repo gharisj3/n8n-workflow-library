@@ -6,7 +6,7 @@ Monitor one or more API endpoints and log or return their health status.
 
 ## Architecture Flow
 
-Schedule Trigger -> Set Endpoint List -> HTTP Request -> Status Code Check -> Latency Capture -> Success Branch or Failure Branch -> Log Result -> Optional Notification Placeholder
+Schedule Trigger -> Set Endpoint List -> HTTP Request -> Status Code Check -> Latency Capture -> Success Branch or Failure Branch -> Prepare Health Record -> Optional Notification Placeholder
 
 ## Node-by-Node Explanation
 
@@ -15,9 +15,11 @@ Schedule Trigger -> Set Endpoint List -> HTTP Request -> Status Code Check -> La
 - HTTP Request calls each endpoint.
 - Status Code Check marks expected codes as healthy.
 - Latency Capture records timing metadata where available.
+- `latency_ms` is an optional provider-reported header. `elapsed_ms` is observation time since preparing the endpoint item and can include workflow waiting; it is not precise request latency.
 - Success Branch handles healthy results.
 - Failure Branch handles unhealthy results.
-- Log Result prepares an audit record.
+- Prepare Health Record prepares an audit record.
+- The template does not persist health history or send alerts; outputs mark those operations as not performed.
 - Optional Notification Placeholder is where email, chat, or incident routing can be added.
 
 ## Required Credentials
@@ -58,7 +60,7 @@ Import `workflow.json`, review the schedule, reconnect optional credentials, and
 
 ## How to Test
 
-Run manually in n8n and inspect the Log Result node output.
+Run manually in n8n and inspect the Prepare Health Record node output.
 
 ## How to Customize
 

@@ -104,10 +104,10 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, stored_at: new Date().toISOString(), storage_note: 'Replace this Code node with database, queue, or issue tracker storage in production.' } }];"
+        "jsCode": "return [{ json: { ...$json, prepared_at: new Date().toISOString(), persisted: false, storage_note: 'This template does not store events. Connect a durable database or queue before relying on dead-letter retention.' } }];"
       },
       "id": "03-store-failed-event",
-      "name": "Store Failed Event",
+      "name": "Prepare Storage Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -200,7 +200,7 @@
       "main": [
         [
           {
-            "node": "Store Failed Event",
+            "node": "Prepare Storage Payload",
             "type": "main",
             "index": 0
           }
@@ -211,14 +211,14 @@
       "main": [
         [
           {
-            "node": "Store Failed Event",
+            "node": "Prepare Storage Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Failed Event": {
+    "Prepare Storage Payload": {
       "main": [
         [
           {

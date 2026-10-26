@@ -66,7 +66,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.example.com/endpoint",
+        "url": "={{$env.ODOO_SYNC_URL}}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "httpHeaderAuth",
         "sendBody": true,

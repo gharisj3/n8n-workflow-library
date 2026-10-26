@@ -6,11 +6,11 @@ Process large arrays in controlled chunks to reduce rate-limit, memory, and time
 
 ## Architecture Flow
 
-Webhook Trigger or Manual Trigger -> Load Input Array -> Validate Array -> Split In Batches -> Process Item Placeholder -> Delay / Rate Limit -> Collect Results -> Handle Failed Items -> Return Summary
+Webhook Trigger -> Load Input Array -> Input Valid? -> Expand Items -> Split In Batches (loop output) -> Process Item Placeholder -> Delay / Rate Limit -> back to Split In Batches. The done output goes to Collect Results -> Handle Failed Items -> Return Summary. Invalid input returns HTTP 400 before entering the loop.
 
 ## Node-by-Node Explanation
 
-- Webhook Trigger receives an item array.
+- Webhook Trigger receives an item array in the request body.
 - Load Input Array expands the request body into individual items.
 - Validate Array checks that `items` is an array.
 - Split In Batches processes a fixed number of items per cycle.
@@ -19,6 +19,10 @@ Webhook Trigger or Manual Trigger -> Load Input Array -> Validate Array -> Split
 - Collect Results formats processed item results.
 - Handle Failed Items separates failed results for review.
 - Return Summary reports totals.
+
+The placeholder processes every input item and supports `simulate_failure: true` on an item for an offline failure example. Counts and failed_items are derived from results, not hardcoded. Replace the placeholder with real work while preserving one result per item and its status. Offline tests exercise the Code nodes and graph contract; they do not certify n8n runtime behavior.
+
+The graph follows n8n's [Loop Over Items](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.splitinbatches/) contract: loop output for batches and done output for combined results. Code nodes use explicit [all-items mode](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.code/).
 
 ## Required Credentials
 

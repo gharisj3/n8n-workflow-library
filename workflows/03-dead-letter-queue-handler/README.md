@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Capture failed events from other workflows, classify the failure, store it, and return a retry decision path.
+Accept failed-event payloads, classify the failure, prepare a storage payload and return a retry decision. The default export does not persist events or execute retries. Its output explicitly reports `persisted: false`; connect a durable database or queue before relying on retention.
 
 ## What a Dead-Letter Queue Is
 
@@ -14,7 +14,7 @@ Dead-letter handling protects production automations from losing events, retryin
 
 ## Architecture Flow
 
-Webhook Trigger for Failed Event -> Normalize Failed Event -> Classify Error -> Check Retry Count -> Retry Allowed Branch or Final Dead-Letter Branch -> Store Failed Event -> Respond with Status
+Webhook Trigger for Failed Event -> Normalize Failed Event -> Classify Error -> Check Retry Count -> Retry Allowed Branch or Final Dead-Letter Branch -> Prepare Storage Payload -> Respond with Status
 
 ## Node-by-Node Explanation
 
@@ -24,7 +24,7 @@ Webhook Trigger for Failed Event -> Normalize Failed Event -> Classify Error -> 
 - Check Retry Count decides whether retries remain.
 - Retry Allowed Branch returns retry guidance.
 - Final Dead-Letter Branch marks the event for manual review.
-- Store Failed Event prepares the storage payload.
+- Prepare Storage Payload prepares the storage payload.
 - Respond with Status returns the decision.
 
 ## Required Credentials
@@ -73,7 +73,7 @@ Post `failed-event-sample.json` to the test webhook URL. Change `retry_count` an
 
 ## How to Customize
 
-Connect Store Failed Event to MySQL, PostgreSQL, a queue, or an issue tracker.
+Connect Prepare Storage Payload to MySQL, PostgreSQL, a queue, or an issue tracker.
 
 ## Production Notes
 

@@ -26,6 +26,10 @@ Webhook Trigger -> Normalize Input -> Build Claude Request -> HTTP Request to Cl
 ## Required Environment Variables
 
 - `CLAUDE_API_KEY`
+- `CLAUDE_API_URL`: your Anthropic Messages-compatible endpoint URL
+- `CLAUDE_MODEL`: a model available to your account; no placeholder model is selected automatically
+
+Configure `CLAUDE_API_CREDENTIAL` to send the provider's API-key header. This template includes the Messages API version header. No live provider call has been verified here; choosing a valid model and testing the full provider contract are required before use.
 
 ## Sample Input
 

@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { request_id: $json.request_id, source: $json.source, payload: { model: 'claude-placeholder-model', max_tokens: 700, messages: [{ role: 'user', content: `Return only valid JSON with fields title, priority, category, summary, action_items. Text: ${$json.text}` }] } } }];"
+        "jsCode": "if (!$env.CLAUDE_MODEL || !$env.CLAUDE_API_URL) throw new Error('Configure CLAUDE_MODEL and CLAUDE_API_URL before using this template');\nreturn [{ json: { request_id: $json.request_id, source: $json.source, payload: { model: $env.CLAUDE_MODEL, max_tokens: 700, messages: [{ role: 'user', content: `Return only valid JSON with fields title, priority, category, summary, action_items. Text: ${$json.text}` }] } } }];"
       },
       "id": "01-build-claude-request",
       "name": "Build Claude Request",
@@ -66,7 +66,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.example.com/endpoint",
+        "url": "={{$env.CLAUDE_API_URL}}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "httpHeaderAuth",
         "sendBody": true,
@@ -74,6 +74,15 @@
         "jsonBody": "={{$json.payload}}",
         "options": {
           "timeout": 30000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
         }
       },
       "id": "01-http-request-to-claude-api",
